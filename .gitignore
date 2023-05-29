@@ -1,1 +1,5 @@
 *.dat
+*.db
+*.txt
+*.json
+.DS_Store
