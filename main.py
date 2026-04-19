@@ -1,23 +1,20 @@
 import requests
-from bs4 import BeautifulSoup
 import pdb
 import json
 from urllib.parse import urlencode, quote_plus
 import sys
 import sqlite3
 import time
-import tayph.util as ut
 from tqdm import tqdm
+from pathlib import Path
 
+#Scroll down to the bottom for instructions
 
-#Read the API token:
-with open('apikey.dat','r') as f:
-    token = f.read()[:-1]
-
-burl = "https://api.adsabs.harvard.edu/v1/search/"
-entry = "2018Natur.560..453H"
-entry = "2022NatAs...6..449P"
-
+def check_path(path):
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError
+    return(p)
 
 class paper:
     def __init__(self,entry,delay=0.3,from_SQL = '',verbose=False):
@@ -42,7 +39,7 @@ class paper:
 
         r = None
         if len(from_SQL) > 0:
-            from_SQL = str(ut.check_path(from_SQL,exists=True))
+            from_SQL = str(check_path(from_SQL))
             with sqlite3.connect(from_SQL) as conn:
                 cursor = conn.cursor()
                 cursor.execute('SELECT * FROM papers WHERE bibcode = ?',(self.bibcode,))
@@ -106,7 +103,7 @@ class paper:
         self.bibtex = results.text.replace('{'+self.bibcode+',','{'+self.firstauthor.split(',')[0]+str(self.year)+',').strip()
 
     def to_SQL(self,filename='papers.db'):
-        # Insert the information contaied in the paper object (p) into the SQL table.
+        # Insert the information contained in the paper object (p) into the SQL table.
         with sqlite3.connect(filename) as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -137,7 +134,7 @@ def load_SQL(f='papers.db'):
     """
     This parses the entire SQL database in a list of paper objects.
     """
-    f = ut.check_path(f,exists=True)
+    f = check_path(f)
     # Connect to the SQLite database
     with sqlite3.connect(str(f)) as conn:
         cursor = conn.cursor()
@@ -256,12 +253,11 @@ def check_in_database(bc,database='papers.db',inverse=False):
     Example:
     R = check_in_database(['2003JPCA..107.3728O','1999JPCA..103.3721R','1777JPCA..103.3721R'],inverse=True)
     """
-    import tayph.util as ut
     import sqlite3
     if type(bc) == str:
         bc = [bc]
     query = "SELECT * FROM papers WHERE bibcode = ?"
-    database=str(ut.check_path(database,exists=True))
+    database=str(check_path(database))
     results = []
     with sqlite3.connect(database) as conn:
         cursor = conn.cursor()
@@ -276,6 +272,38 @@ def check_in_database(bc,database='papers.db',inverse=False):
     return(results)
 
 
+def print_table_entries(database='papers.db'):
+    import sqlite3
+    journals = {}
+    journals['ApJ'] = 'The Astrophysical Journal'
+    journals['MNRAS'] = 'Monthly Notices of the Royal Astronomical Society'
+    journals['AANDA'] = 'Astronomy and Astrophysics'
+    database=str(check_path(database))
+    query = "SELECT bibcode, journal, year, firstauthor FROM papers"
+    with sqlite3.connect(database) as conn:
+        cursor = conn.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
+    for r in rows:
+        print(r)
+    pdb.set_trace()
+
+
+
+
+
+
+
+#This crawls the ADS using its API, producing a big SQL table.
+
+#Read the API token:
+with open('apikey.dat','r') as f:
+    token = f.read()[:-1]
+
+burl = "https://api.adsabs.harvard.edu/v1/search/"
+entry = "2018Natur.560..453H"
+entry = "2022NatAs...6..449P"
+
 
 # P = paper(entry)
 
@@ -286,5 +314,7 @@ def check_in_database(bc,database='papers.db',inverse=False):
 
 
 
-C = crawler(entry,depth=2)
-pdb.set_trace()
+
+print_table_entries()
+# C = crawler(entry,depth=2)
+
